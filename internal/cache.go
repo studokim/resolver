@@ -23,5 +23,5 @@ func (c Cache) get(domain string) net.IP {
 }
 
 func (c Cache) save(domain string, address net.IP, ttl time.Duration) {
-	c[domain] = record{Address: address, Expires: time.Now().Add(ttl)}
+	c[domain] = record{Address: address, Expires: time.Now().Add(ttl * time.Second)}
 }

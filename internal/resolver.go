@@ -3,9 +3,13 @@ package internal
 import (
 	"errors"
 	"net"
+	"time"
 )
 
-func resolveLocally(domain string, c *cache, f *filter) (net.IP, error) {
+const root = "198.41.0.4"
+const port = 53
+
+func resolveLocally(domain string, c *Cache, f *Filter) (net.IP, error) {
 	if f.contains(domain) {
 		return f.get(domain), nil
 	}
@@ -15,12 +19,18 @@ func resolveLocally(domain string, c *cache, f *filter) (net.IP, error) {
 	return nil, errors.New(domain + " not available locally")
 }
 
-func Resolve(domain string) net.IP {
-	f := make(filter)
-	f.readconfig()
-	c := make(cache)
-	address, err := resolveLocally(domain, &c, &f)
-	Handle(err)
+func resolveRemotely(domain string, nameserver string, c *Cache) (net.IP, error) {
+	address := net.ParseIP("0.0.0.0")
+	c.save(domain, address, time.Hour)
+	return address, nil
+}
 
+func Resolve(domain string, c *Cache, f *Filter) net.IP {
+	address, err := resolveLocally(domain, c, f)
+	if err == nil {
+		return address
+	}
+	address, err = resolveRemotely(domain, root, c)
+	Handle(err)
 	return address
 }

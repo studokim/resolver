@@ -5,24 +5,23 @@ import (
 	"time"
 )
 
-type host struct {
-	Domain  string
+type record struct {
 	Address net.IP
 	Expires time.Time
 }
 
-type cache map[string]host
+type Cache map[string]record
 
-func (c *cache) contains(domain string) bool {
+func (c *Cache) contains(domain string) bool {
 	host, ok := (*c)[domain]
 	return ok && host.Expires.After(time.Now())
 }
 
-func (c *cache) get(domain string) net.IP {
+func (c *Cache) get(domain string) net.IP {
 	host := (*c)[domain]
 	return host.Address
 }
 
-func (c *cache) save(domain string, address net.IP, ttl time.Duration) {
-	(*c)[domain] = host{Domain: domain, Address: address, Expires: time.Now().Add(ttl)}
+func (c *Cache) save(domain string, address net.IP, ttl time.Duration) {
+	(*c)[domain] = record{Address: address, Expires: time.Now().Add(ttl)}
 }

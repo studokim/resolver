@@ -7,19 +7,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type filter map[string]net.IP
+type Filter map[string]net.IP
 
-func (f *filter) contains(domain string) bool {
+func (f *Filter) contains(domain string) bool {
 	_, ok := (*f)[domain]
 	return ok
 }
 
-func (f *filter) get(domain string) net.IP {
+func (f *Filter) get(domain string) net.IP {
 	address := (*f)[domain]
 	return address
 }
 
-func (f *filter) readconfig() {
+func (f *Filter) Readconfig() {
+	if len(*f) != 0 {
+		return
+	}
 	file, err := os.ReadFile("filter.yml")
 	Handle(err)
 	err = yaml.Unmarshal(file, f)

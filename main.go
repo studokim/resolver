@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/studokim/resolver/internal"
 )
@@ -10,13 +11,19 @@ import (
 func main() {
 	args := os.Args
 	if len(args) > 1 {
-		domain := args[1]
-		f := make(internal.Filter)
-		f.Readconfig()
-		c := make(internal.Cache)
-		address := internal.Resolve(domain, &c, &f)
-		fmt.Println(address)
+		if args[1] == "--listen" || args[1] == "-l" {
+			port, err := strconv.Atoi(args[2])
+			internal.HandleFatal(err)
+			internal.Listen(port)
+		} else {
+			var resolver internal.Resolver
+			resolver.Init()
+			address := resolver.Resolve(args[1])
+			fmt.Println(address)
+		}
 	} else {
 		fmt.Println("Usage: ./resolver <example.com>")
+		fmt.Println("or     ./resolver --listen <port>")
+		fmt.Println("or     ./resolver -l       <port>")
 	}
 }

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"log"
 	"net"
 
 	"github.com/miekg/dns"
@@ -9,44 +10,60 @@ import (
 
 const root = "198.41.0.4"
 
-func resolveLocally(domain string, c *Cache, f *Filter) net.IP {
-	if f.contains(domain) {
-		return f.get(domain)
-	}
-	if c.contains(domain) {
-		return c.get(domain)
-	}
-	return nil
+type Resolver struct {
+	cache  Cache
+	filter Filter
 }
 
-func resolveRemotely(domain string, c *Cache, f *Filter) (net.IP, error) {
+func (r *Resolver) Init() {
+	r.cache = make(Cache)
+	r.filter = make(Filter)
+	r.filter.Readconfig()
+}
+
+func (r *Resolver) resolveLocally(domain string) net.IP {
+	var address net.IP
+	if r.filter.contains(domain) {
+		address = r.filter.get(domain)
+	}
+	if r.cache.contains(domain) {
+		address = r.cache.get(domain)
+	}
+	if address != nil {
+		log.Println("Resolved locally:", domain, "IN A", address)
+	}
+	return address
+}
+
+func (r *Resolver) resolveRemotely(domain string) (net.IP, error) {
 	nameserver := net.ParseIP(root)
 	request := new(dns.Msg)
-	request.SetQuestion(dns.Fqdn(domain), dns.TypeA)
+	request.SetQuestion(domain, dns.TypeA)
 	for {
 		reply, err := dns.Exchange(request, nameserver.String()+":53")
 		if err != nil {
 			return nil, err
 		}
 		if address, ttl := parseAnswer(reply); address != nil {
-			c.save(domain, address, ttl)
+			r.cache.save(domain, address, ttl)
 			return address, nil
 		} else if nsIp := parseAdditional(reply); nsIp != nil {
 			nameserver = nsIp
 		} else if nsDomain := parseAuthority(reply); nsDomain != "" {
-			nameserver = Resolve(nsDomain, c, f)
+			nameserver = r.Resolve(nsDomain)
 		} else {
 			return nil, errors.New(domain + " does not have any A record")
 		}
 	}
 }
 
-func Resolve(domain string, c *Cache, f *Filter) net.IP {
-	address := resolveLocally(domain, c, f)
+func (r *Resolver) Resolve(domain string) net.IP {
+	domain = dns.Fqdn(domain)
+	address := r.resolveLocally(domain)
 	if address != nil {
 		return address
 	}
-	address, err := resolveRemotely(domain, c, f)
+	address, err := r.resolveRemotely(domain)
 	Handle(err)
 	return address
 }

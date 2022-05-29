@@ -3,34 +3,50 @@ package internal
 import (
 	"errors"
 	"net"
-	"time"
+
+	"github.com/miekg/dns"
 )
 
 const root = "198.41.0.4"
-const port = 53
 
-func resolveLocally(domain string, c *Cache, f *Filter) (net.IP, error) {
+func resolveLocally(domain string, c *Cache, f *Filter) net.IP {
 	if f.contains(domain) {
-		return f.get(domain), nil
+		return f.get(domain)
 	}
 	if c.contains(domain) {
-		return c.get(domain), nil
+		return c.get(domain)
 	}
-	return nil, errors.New(domain + " not available locally")
+	return nil
 }
 
-func resolveRemotely(domain string, nameserver string, c *Cache) (net.IP, error) {
-	address := net.ParseIP("0.0.0.0")
-	c.save(domain, address, time.Hour)
-	return address, nil
+func resolveRemotely(domain string, c *Cache, f *Filter) (net.IP, error) {
+	nameserver := net.ParseIP(root)
+	request := new(dns.Msg)
+	request.SetQuestion(dns.Fqdn(domain), dns.TypeA)
+	for {
+		reply, err := dns.Exchange(request, nameserver.String()+":53")
+		if err != nil {
+			return nil, err
+		}
+		if address, ttl := parseAnswer(reply); address != nil {
+			c.save(domain, address, ttl)
+			return address, nil
+		} else if nsIp := parseAdditional(reply); nsIp != nil {
+			nameserver = nsIp
+		} else if nsDomain := parseAuthority(reply); nsDomain != "" {
+			nameserver = Resolve(nsDomain, c, f)
+		} else {
+			return nil, errors.New(domain + " does not have any A record")
+		}
+	}
 }
 
 func Resolve(domain string, c *Cache, f *Filter) net.IP {
-	address, err := resolveLocally(domain, c, f)
-	if err == nil {
+	address := resolveLocally(domain, c, f)
+	if address != nil {
 		return address
 	}
-	address, err = resolveRemotely(domain, root, c)
+	address, err := resolveRemotely(domain, c, f)
 	Handle(err)
 	return address
 }

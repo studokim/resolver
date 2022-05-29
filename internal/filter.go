@@ -24,7 +24,7 @@ func (f *Filter) Readconfig() {
 		return
 	}
 	file, err := os.ReadFile("filter.yml")
-	Handle(err)
+	HandleFatal(err)
 	err = yaml.Unmarshal(file, f)
-	Handle(err)
+	HandleFatal(err)
 }

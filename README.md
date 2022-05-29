@@ -21,6 +21,8 @@ git clone https://github.com/studokim/resolver.git
 cd resolver
 go build
 ./resolver <example.com>
+#  or, to start the server,
+./resolver --listen <port>
 ```
 
 You can also fill the `filter.yml` with pre-defined `domain: ip` pairs. Such a domain will always be resolved to the specified ip.
